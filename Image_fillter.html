@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PixelPolish Pro - Non-Linear Image Filters</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+
+  <!-- Load OpenCV.js -->
+  <script>
+    function onOpenCvReady() {
+      console.log("✅ OpenCV.js đã tải xong!");
+    }
+  </script>
+  <script src="https://docs.opencv.org/4.10.0/opencv.js" onload="onOpenCvReady();"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#6366f1',
+            secondary: '#8b5cf6',
+            dark: '#1e293b',
+            light: '#f8fafc'
+          }
+        }
+      },
+      darkMode: 'class'
+    }
+  </script>
+  <style>
+    .image-container {transition: all 0.3s ease;}
+    .image-container:hover {transform: scale(1.02);}
+    .filter-card {transition: all 0.2s ease;}
+    .filter-card:hover {transform: translateY(-2px);box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);}
+    #originalCanvas,#processedCanvas {
+      max-width:100%;height:auto;border-radius:0.5rem;
+      box-shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+    }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-dark min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="text-center mb-12">
+      <h1 class="text-4xl font-bold text-primary dark:text-indigo-400 mb-2">PixelPolish Pro</h1>
+      <p class="text-xl text-gray-600 dark:text-gray-300">Advanced Non-Linear Image Filters 🧙‍♂️</p>
+      <div class="flex justify-center mt-4">
+        <button id="themeToggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+          <i data-feather="moon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Image Comparison -->
+    <div class="mt-12 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+      <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+        <i data-feather="columns" class="mr-2"></i> Image Comparison
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="text-center">
+          <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Original Image</h3>
+          <div class="image-container relative">
+            <canvas id="originalCanvas" class="mx-auto border border-gray-200 dark:border-gray-600"></canvas>
+          </div>
+        </div>
+        <div class="text-center">
+          <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Processed Image</h3>
+          <div class="image-container relative">
+            <canvas id="processedCanvas" class="mx-auto border border-gray-200 dark:border-gray-600"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- Upload -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+          <i data-feather="upload" class="mr-2"></i> Upload Your Image
+        </h2>
+        <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center mb-4">
+          <i data-feather="image" class="w-12 h-12 mx-auto text-gray-400 mb-3"></i>
+          <p class="text-gray-500 dark:text-gray-400 mb-4">Drag & drop your image here or click to browse</p>
+          <input type="file" id="imageUpload" accept="image/jpeg, image/png" class="hidden">
+          <label for="imageUpload" class="cursor-pointer bg-primary hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition duration-200 inline-block">
+            Select Image
+          </label>
+          <p class="text-xs text-gray-400 mt-2">Max file size: 5MB (JPG, PNG)</p>
+        </div>
+        <div id="imageInfo" class="hidden bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-gray-600 dark:text-gray-300">Resolution:</span>
+            <span id="resolutionInfo" class="font-medium text-gray-800 dark:text-gray-100"></span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600 dark:text-gray-300">File Size:</span>
+            <span id="fileSizeInfo" class="font-medium text-gray-800 dark:text-gray-100"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+          <i data-feather="sliders" class="mr-2"></i> Non-Linear Filters
+        </h2>
+
+        <div class="space-y-4">
+          <!-- Median -->
+          <div class="filter-card bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <h3 class="font-medium text-gray-800 dark:text-gray-100 mb-2">Median Filter</h3>
+            <div class="flex items-center space-x-4">
+              <span class="text-sm text-gray-600 dark:text-gray-300">Kernel Size:</span>
+              <input type="range" id="medianKernel" min="3" max="15" step="2" value="3" class="w-full">
+              <span id="medianValue" class="text-sm font-medium text-primary">3</span>
+            </div>
+          </div>
+
+          <!-- Bilateral -->
+          <div class="filter-card bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <h3 class="font-medium text-gray-800 dark:text-gray-100 mb-2">Bilateral Filter</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-300">Diameter:</label>
+                <input type="range" id="bilateralD" min="1" max="15" value="5" class="w-full">
+                <span id="bilateralDValue" class="text-sm font-medium text-primary">5</span>
+              </div>
+              <div>
+                <label class="text-sm text-gray-600 dark:text-gray-300">Sigma:</label>
+                <input type="range" id="bilateralSigma" min="1" max="100" value="50" class="w-full">
+                <span id="bilateralSigmaValue" class="text-sm font-medium text-primary">50</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="mt-6 grid grid-cols-2 gap-4">
+          <button id="resetImage" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-100 py-2 rounded-lg flex items-center justify-center">
+            <i data-feather="refresh-cw" class="mr-2"></i> Reset
+          </button>
+          <button id="downloadImage" class="bg-primary hover:bg-indigo-600 text-white py-2 rounded-lg flex items-center justify-center">
+            <i data-feather="download" class="mr-2"></i> Download
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-12 text-center text-gray-600 dark:text-gray-400 text-sm">
+      <p>PixelPolish Pro - Advanced Image Processing Tool</p>
+      <p class="mt-1">© 2023 All rights reserved</p>
+    </footer>
+  </div>
+
+  <script>
+    feather.replace();
+
+    // Theme Toggle
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+    });
+
+    let originalImage = null;
+    let processedImage = null;
+    const originalCanvas = document.getElementById('originalCanvas');
+    const processedCanvas = document.getElementById('processedCanvas');
+    const imageUpload = document.getElementById('imageUpload');
+    const imageInfo = document.getElementById('imageInfo');
+    const resolutionInfo = document.getElementById('resolutionInfo');
+    const fileSizeInfo = document.getElementById('fileSizeInfo');
+
+    // Upload Image
+    imageUpload.addEventListener('change', function(e) {
+      if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+          alert('File size exceeds 5MB limit');
+          return;
+        }
+        fileSizeInfo.textContent = (file.size / 1024).toFixed(1) + ' KB';
+        imageInfo.classList.remove('hidden');
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          originalImage = new Image();
+          originalImage.onload = function() {
+            originalCanvas.width = Math.min(originalImage.width, 600);
+            originalCanvas.height = originalImage.height * (originalCanvas.width / originalImage.width);
+            processedCanvas.width = originalCanvas.width;
+            processedCanvas.height = originalCanvas.height;
+            resolutionInfo.textContent = originalImage.width + ' × ' + originalImage.height;
+
+            originalCanvas.getContext('2d').drawImage(originalImage, 0, 0, originalCanvas.width, originalCanvas.height);
+            processedCanvas.getContext('2d').drawImage(originalImage, 0, 0, processedCanvas.width, processedCanvas.height);
+            processedImage = originalImage;
+
+            applyFilter();
+          };
+          originalImage.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Hàm áp dụng bộ lọc
+    function applyFilter() {
+      if (!originalImage || typeof cv === 'undefined') return;
+
+      // Vẽ lại ảnh gốc
+      originalCanvas.getContext('2d').drawImage(originalImage, 0, 0, originalCanvas.width, originalCanvas.height);
+
+      let src = cv.imread(originalCanvas);
+      let dst = new cv.Mat();
+
+      try {
+        cv.cvtColor(src, src, cv.COLOR_RGBA2RGB);
+
+        let medianKernel = parseInt(document.getElementById('medianKernel').value);
+        let bilateralD = parseInt(document.getElementById('bilateralD').value);
+        let bilateralSigma = parseInt(document.getElementById('bilateralSigma').value);
+
+        // Median Filter
+        if (medianKernel > 1) {
+          if (medianKernel % 2 === 0) medianKernel++;
+          cv.medianBlur(src, dst, medianKernel);
+          src.delete(); src = dst.clone();
+        }
+
+        // Bilateral Filter
+        if (bilateralD > 0) {
+          cv.bilateralFilter(src, dst, bilateralD, bilateralSigma, bilateralSigma, cv.BORDER_DEFAULT);
+          src.delete(); src = dst.clone();
+        }
+
+        cv.imshow(processedCanvas, dst);
+      } catch (err) {
+        console.error("⚠️ Lỗi khi áp dụng filter:", err);
+      } finally {
+        src.delete();
+        dst.delete();
+      }
+    }
+
+    // Slider events
+    document.getElementById('medianKernel').addEventListener('input', function() {
+      document.getElementById('medianValue').textContent = this.value;
+      applyFilter();
+    });
+
+    document.getElementById('bilateralD').addEventListener('input', function() {
+      document.getElementById('bilateralDValue').textContent = this.value;
+      applyFilter();
+    });
+
+    document.getElementById('bilateralSigma').addEventListener('input', function() {
+      document.getElementById('bilateralSigmaValue').textContent = this.value;
+      applyFilter();
+    });
+
+    // Reset Image
+    document.getElementById('resetImage').addEventListener('click', function() {
+      document.getElementById('medianKernel').value = 3;
+      document.getElementById('medianValue').textContent = 3;
+      document.getElementById('bilateralD').value = 5;
+      document.getElementById('bilateralDValue').textContent = 5;
+      document.getElementById('bilateralSigma').value = 50;
+      document.getElementById('bilateralSigmaValue').textContent = 50;
+
+      if (originalImage) {
+        processedCanvas.getContext('2d').drawImage(originalImage, 0, 0, processedCanvas.width, processedCanvas.height);
+        applyFilter();
+      }
+    });
+
+    // Download Image
+    document.getElementById('downloadImage').addEventListener('click', function() {
+      if (!processedImage) return;
+      const link = document.createElement('a');
+      link.download = 'filtered-image.png';
+      link.href = processedCanvas.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+</body>
+</html>
